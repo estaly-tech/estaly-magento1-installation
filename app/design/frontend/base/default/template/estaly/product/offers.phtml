@@ -15,6 +15,8 @@ $estalyApiKey = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$
 $estalyStoreId = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/estalyStoreId');
 $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/websiteUrl');
 
+$mainWebsiteUrl = Mage::getStoreConfig('estalymodule/settings/mainWebsiteUrl');
+
 ?>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -54,7 +56,7 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
     const PDP = {
         selectedPlanId: null,
 
-        async init({variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl}) {
+        async init({variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl, mainWebsiteUrl}) {
             if (!variantReferenceId) {
                 return
             }
@@ -77,7 +79,7 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
 
             await this.insertPlans(plans);
             this.fillButtonsMarketing(data.marketing.buttons);
-            this.initButtons(combinationReferenceId, addToCartButtonClass, websiteUrl);
+            this.initButtons(combinationReferenceId, addToCartButtonClass, websiteUrl, mainWebsiteUrl);
             this.displayButtons();
 
             if(modalFeatureEnabled){
@@ -115,7 +117,7 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
             }
         },
 
-        initButtons(variantReferenceId, addToCartButtonClass, websiteUrl) {
+        initButtons(variantReferenceId, addToCartButtonClass, websiteUrl, mainWebsiteUrl) {
             const offerButtons = document.querySelectorAll(".estaly-offer-button")
             offerButtons.forEach((offerButton) => {
                 offerButton.addEventListener("click", () => {
@@ -135,7 +137,7 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
 
             const addToCartButton = document.getElementsByClassName(addToCartButtonClass)[0];
             addToCartButton.estalyVariantSelected = variantReferenceId;
-            addToCartButton.addEventListener("click", (evt) => this.addOfferToCart(evt, websiteUrl));
+            addToCartButton.addEventListener("click", (evt) => this.addOfferToCart(evt, websiteUrl, mainWebsiteUrl));
         },
 
         displayButtons() {
@@ -216,20 +218,18 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
             return offerButton;
         },
 
-        addOfferToCart(evt, websiteUrl) {
+        addOfferToCart(evt, websiteUrl, mainWebsiteUrl) {
             const variantReferenceId = evt.currentTarget.estalyVariantSelected;
             offerButtonActive = document.querySelector(".estaly-offer-button.active")
             if (offerButtonActive !== null) {
                 const selectedPlanId = offerButtonActive.dataset.planVariantId;
-                console.log(websiteUrl);
-                Magento1.addOfferToCart(selectedPlanId, variantReferenceId, websiteUrl);
+                Magento1.addOfferToCart(selectedPlanId, variantReferenceId, websiteUrl, mainWebsiteUrl);
             }
         },
 
         async updateEstalyWidget(variantSelectedId, addToCartButtonClass){
 
             var setButtons = document.querySelector(".estaly-pdp-offering").css("display") == "none";
-            console.log(setButtons);
 
             const data = await Estaly.getOffers(variantSelectedId);
 
@@ -311,10 +311,10 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
     const Magento1 = {
         fetchOptionIdUrl: '<?php echo $fetchOptionIdUrl; ?>',
 
-        async getOptionIdFromProductId(productId) {
+        async getOptionIdFromProductId(productId, mainWebsiteUrl) {
             return new Promise((resolve, reject) => {
                 jQuery.ajax({
-                    url: "http://localhost/magento1/estalymodule/productoptions/fetchOptionId/?productId=34",
+                    url: `${mainWebsiteUrl}/estalymodule/productoptions/fetchOptionId/?productId=${productId}`,
                     type: 'GET',
                     data: { productId: productId },
                     dataType: 'json',
@@ -332,9 +332,9 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
             });
         },
 
-        async addOfferToCart(productId, variantReferenceId, websiteUrl) {
+        async addOfferToCart(productId, variantReferenceId, websiteUrl, mainWebsiteUrl) {
             try {
-                const optionId = await this.getOptionIdFromProductId(productId);
+                const optionId = await this.getOptionIdFromProductId(productId, mainWebsiteUrl);
 
                 if (!optionId) return;  // Si optionId est null ou undefined, arrêtez l'exécution ici
 
@@ -425,22 +425,16 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
 
     const websiteUrl = '<?php echo $websiteUrl; ?>';
 
-    console.log("WEBSITE ID", '<?php echo $websiteId; ?>')
-
-    console.log("ESTALY API KEY", estalyApiKey)
-
-    console.log("WEBSITE URL", websiteUrl)
+    const mainWebsiteUrl = '<?php echo $mainWebsiteUrl; ?>';
 
     const modalFeatureEnabled = <?php echo $modalFeatureEnabled ? 'true' : 'false'; ?>;
     const addToCartButtonClass = '<?php echo $addToCartButtonClass; ?>';
 
     document.addEventListener("DOMContentLoaded", async function () {
         setTimeout(async function () {
-            console.log("init Estaly Widget");
-
             Estaly.init(estalyApiUrl, estalyApiKey);
             const variantReferenceId = <?= json_encode($productId) ?>;
-            await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl });
+            await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl, mainWebsiteUrl });
         }, 200);
     });
 
@@ -487,11 +481,10 @@ $websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$we
                 originalFn(element); 
                 const variantReferenceId = this.getIdOfSelectedProduct();
                 setTimeout(async function () {
-                    console.log("init Estaly Widget 2");
 
                     const addToCartButtonClass = '<?php echo $addToCartButtonClass; ?>';
                     const modalFeatureEnabled = <?php echo $modalFeatureEnabled ? 'true' : 'false'; ?>;
-                    await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl });
+                    await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl, mainWebsiteUrl});
                 }, 200);
             });
         }
