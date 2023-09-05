@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<config>
+    <default>
+        <estalymodule>
+            <settings>
+                <estalyApiUrl>https://195c-2a04-cec0-11fb-af2-19ef-11c5-bf9a-5c26.ngrok-free.app</estalyApiUrl>
+                <modalFeatureEnabled>true</modalFeatureEnabled>
+                <cssScriptLink>https://estaly-tech.github.io/scripts/magento/estaly-magento-local.css</cssScriptLink>
+                <addToCartButtonClass>button btn-cart</addToCartButtonClass>
+                <websites>
+                <website_1>
+                    <estalyApiKey>Bearer r_Dr_2kw11dHSHMh6-A0MQ</estalyApiKey>
+                    <estalyStoreId>120</estalyStoreId>
+                    <websiteUrl>http://localhost/magento1</websiteUrl>
+                </website_1>
+                <website_4>
+                    <estalyApiKey>Bearer 9tCSSMAoxR2-YPSK950PWQ</estalyApiKey>
+                    <estalyStoreId>121</estalyStoreId>
+                    <websiteUrl>http://localhost/magento1/store2</websiteUrl>
+                </website_4>
+                <!-- ... add more website configurations here ... -->
+            </websites>
+            </settings>
+        </estalymodule>
+    </default>
+    <modules>
+        <Estaly_EstalyModule>
+            <version>0.1.0</version>
+        </Estaly_EstalyModule>
+    </modules>
+    <global>
+        <models>
+            <estalymodule>
+                <class>Estaly_EstalyModule_Model</class>
+            </estalymodule>
+        </models>
+        <events>
+            <sales_order_save_after>
+                <observers>
+                    <estalymodule>
+                        <class>estalymodule/observer</class>
+                        <method>sendOrderData</method>
+                        <type>singleton</type>
+                    </estalymodule>
+                </observers>
+            </sales_order_save_after>
+            <catalog_product_save_after>
+                <observers>
+                    <estalymodule_product>
+                        <class>estalymodule/observer</class>
+                        <method>sendProductData</method>
+                        <type>singleton</type>
+                    </estalymodule_product>
+                </observers>
+            </catalog_product_save_after>
+        </events>
+    </global>
+    <frontend>
+        <layout>
+            <updates>
+                <estalymodule>
+                    <file>estalymodule.xml</file>
+                </estalymodule>
+            </updates>
+        </layout>
+        <routers>
+            <estalymodule>
+                <use>standard</use>
+                <args>
+                    <module>Estaly_EstalyModule</module>
+                    <frontName>estalymodule</frontName>
+                </args>
+            </estalymodule>
+        </routers>
+    </frontend>
+</config>

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <Estaly_EstalyModule>
+            <active>true</active>
+            <codePool>community</codePool>
+        </Estaly_EstalyModule>
+    </modules>
+</config>

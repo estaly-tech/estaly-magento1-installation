@@ -1,0 +1,499 @@
+<?php
+$product = Mage::registry('current_product');
+$productId = $product->getId();
+
+$fetchOptionIdUrl = Mage::getUrl('estalymodule/productoptions/fetchOptionId');
+
+$estalyApiUrl = Mage::getStoreConfig('estalymodule/settings/estalyApiUrl');
+
+$modalFeatureEnabled = Mage::getStoreConfig('estalymodule/settings/modalFeatureEnabled') === 'true' ? true : false;
+$cssScriptLink = Mage::getStoreConfig('estalymodule/settings/cssScriptLink');
+$addToCartButtonClass = Mage::getStoreConfig('estalymodule/settings/addToCartButtonClass');
+
+$websiteId = Mage::app()->getWebsite()->getId();
+$estalyApiKey = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/estalyApiKey');
+$estalyStoreId = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/estalyStoreId');
+$websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/websiteUrl');
+
+?>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    jQuery.noConflict();
+</script>
+
+<script>
+    const Estaly = {
+        API_URL: "",
+        API_KEY: "",
+
+        init(apiUrl, apiKey) {
+            this.API_URL = apiUrl;
+            this.API_KEY = apiKey;
+        },
+
+        async getOffers(variantReferenceIds) {
+            const url = `${this.API_URL}/merchant/offers?reference_ids=${variantReferenceIds}`
+
+            let data = null
+            await fetch(url, { headers: { Authorization: this.API_KEY } })
+                .then((response) => {
+                    if(response.ok){
+                        data = response.json();
+                    }
+                })
+                .catch((error) => {
+                    console.log(error)
+                });
+
+            return data;
+        },
+    }
+
+    const PDP = {
+        selectedPlanId: null,
+
+        async init({variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl}) {
+            if (!variantReferenceId) {
+                return
+            }
+
+            const data = await Estaly.getOffers(variantReferenceId);
+
+            if (data == undefined && data == null) {
+                return;
+            }
+
+            const combinationReferenceId = variantReferenceId;
+            const offers = data.offers;
+            const relevantOffer = offers.filter((offer) => offer.productVariantId === combinationReferenceId)[0];
+
+            if (!relevantOffer) {
+                return;
+            }
+
+            const plans = relevantOffer.plans;
+
+            await this.insertPlans(plans);
+            this.fillButtonsMarketing(data.marketing.buttons);
+            this.initButtons(combinationReferenceId, addToCartButtonClass, websiteUrl);
+            this.displayButtons();
+
+            if(modalFeatureEnabled){
+                PdpModal.fillModalMarketing(data.marketing.modal);
+                PdpModal.initModal({ afterAddToCartCallback: () => {}}, combinationReferenceId, data);
+            }
+
+            return this;
+        },
+
+        setButtonsState(parentClass = "") {
+            const offerButtons = document.querySelectorAll(`${parentClass} .estaly-offer-button`);
+            offerButtons.forEach((offerButton) => {
+                if (offerButton.dataset.planVariantId === this.selectedPlanId) {
+                    offerButton.classList.add("active");
+                } else {
+                    offerButton.classList.remove("active");
+                }
+            })
+        },
+
+        removeButtonsState() {
+            const offerButtons = document.querySelectorAll(`.estaly-offer-button`);
+            offerButtons.forEach((offerButton) => {
+                offerButton.classList.remove("active");
+            })
+        },
+
+        fillButtonsMarketing(buttonsMarketingDetails) {
+            const buttons = document.querySelector(".estaly-pdp-offering")
+
+            if (buttons) {
+                buttons.querySelector(".estaly-headline-buttons").innerText = buttonsMarketingDetails.headline
+                buttons.querySelector(".estaly-link-buttons").innerText = buttonsMarketingDetails.linkText
+            }
+        },
+
+        initButtons(variantReferenceId, addToCartButtonClass, websiteUrl) {
+            const offerButtons = document.querySelectorAll(".estaly-offer-button")
+            offerButtons.forEach((offerButton) => {
+                offerButton.addEventListener("click", () => {
+                    if (offerButton.dataset.planVariantId === this.selectedPlanId) {
+                        this.selectedPlanId = null;
+                    } else {
+                        this.selectedPlanId = offerButton.dataset.planVariantId;
+                    }
+                    this.setButtonsState();
+                })
+            })
+
+            const learnMoreButton = document.querySelector(".estaly-link-buttons");
+            learnMoreButton.addEventListener("click", () => {
+                PdpModal.openModal(false);
+            })
+
+            const addToCartButton = document.getElementsByClassName(addToCartButtonClass)[0];
+            addToCartButton.estalyVariantSelected = variantReferenceId;
+            addToCartButton.addEventListener("click", (evt) => this.addOfferToCart(evt, websiteUrl));
+        },
+
+        displayButtons() {
+            const offerButtonsContainer = document.querySelector(".estaly-pdp-offering");
+            if (offerButtonsContainer) {
+                offerButtonsContainer.style.display = "block";
+            }
+        },
+
+        async insertPlans(plans) {
+            if (plans.length === 0) {
+                return
+            }
+
+            const pdpOfferings = document.getElementsByClassName("estaly-pdp-offering")[0];
+
+            const offerButtonGroupComponent = pdpOfferings.getElementsByClassName("estaly-button-group")[0];
+
+            if (plans.length > 0 && plans.length === 1) {
+                PDP.createUniqOfferButton(offerButtonGroupComponent, plans[0])
+            } else {
+                plans.forEach((plan) => {
+                    PDP.createOfferButton(offerButtonGroupComponent, plan);
+                })
+            }
+        },
+
+        createUniqOfferButton(parentComponent, plan) {
+            parentComponent.classList.add('uniq');
+            const offerButton = document.createElement('div');
+            offerButton.setAttribute('class', 'estaly-offer-button uniq');
+            offerButton.dataset.planVariantId = plan.offerVariantId;
+
+            const checkboxTextDiv = document.createElement('div');
+            checkboxTextDiv.setAttribute('class', 'estaly-offer-uniq-button-left-side uniq');
+
+            const offerButtonCheckbox = document.createElement('div');
+            offerButtonCheckbox.innerHTML = '✓';
+            offerButtonCheckbox.setAttribute('class', 'estaly-offer-uniq-button-checkbox');
+            checkboxTextDiv.appendChild(offerButtonCheckbox);
+
+            const textOfferButton = document.createElement('div');
+            textOfferButton.setAttribute('class', 'estaly-offer-uniq-button-title');
+            textOfferButton.innerText = `Assurance ${plan.termLength}`;
+            checkboxTextDiv.appendChild(textOfferButton);
+
+            offerButton.appendChild(checkboxTextDiv);
+
+            const spanPriceElement = document.createElement('span');
+            spanPriceElement.setAttribute('class', 'estaly-offer-uniq-button-price');
+            spanPriceElement.innerText = `${plan.price}`;
+            offerButton.appendChild(spanPriceElement);
+
+            parentComponent.appendChild(offerButton);
+        },
+
+        createOfferButton(parentComponent, plan){
+            parentComponent.classList.add('multiple');
+            const offerButton = document.createElement('div');
+            offerButton.dataset.planVariantId = plan.offerVariantId
+            offerButton.setAttribute('class', 'estaly-offer-button multiple');
+            parentComponent.appendChild(offerButton);
+
+            const spanGroupElement = document.createElement('span');
+            spanGroupElement.setAttribute('class', "estaly-flex estaly-flex-col");
+            offerButton.appendChild(spanGroupElement);
+
+            const spanTermLength = document.createElement('span');
+            spanTermLength.setAttribute('class', 'estaly-offer-term-length');
+            spanGroupElement.appendChild(spanTermLength);
+            spanTermLength.innerText = plan.termLength;
+
+            const spanPrice = document.createElement('span');
+            spanPrice.setAttribute('class', 'estaly-offer-price mt-2');
+            spanGroupElement.appendChild(spanPrice);
+            spanPrice.innerText = plan.price
+
+            return offerButton;
+        },
+
+        addOfferToCart(evt, websiteUrl) {
+            const variantReferenceId = evt.currentTarget.estalyVariantSelected;
+            offerButtonActive = document.querySelector(".estaly-offer-button.active")
+            if (offerButtonActive !== null) {
+                const selectedPlanId = offerButtonActive.dataset.planVariantId;
+                console.log(websiteUrl);
+                Magento1.addOfferToCart(selectedPlanId, variantReferenceId, websiteUrl);
+            }
+        },
+
+        async updateEstalyWidget(variantSelectedId, addToCartButtonClass){
+
+            var setButtons = document.querySelector(".estaly-pdp-offering").css("display") == "none";
+            console.log(setButtons);
+
+            const data = await Estaly.getOffers(variantSelectedId);
+
+            const combinationReferenceId = data.variantReferenceId;
+            const offers = data.offers;
+            const relevantOffer = offers.filter((offer) => offer.productVariantId === combinationReferenceId)[0];
+            const plans = relevantOffer.plans;
+            
+            this.removeButtonsState();
+            await this.insertPlans(plans);
+
+            const addToCartButton = document.getElementsByClassName(addToCartButtonClass)[0];
+            addToCartButton.estalyVariantSelected = variantSelectedId;
+
+            this.fillButtonsMarketing(data.marketing.buttons);
+            if (setButtons) {
+                this.initButtons(combinationReferenceId, addToCartButtonClass);
+            }
+            this.displayButtons();
+
+            PdpModal.fillModalMarketing(data.marketing.modal);
+            PdpModal.initModal({ afterAddToCartCallback: () => {}}, variantSelectedId, data);
+        },
+
+    }
+
+    const PdpModal = {
+        selectedOfferId: null,
+        initialized: false,
+
+        initModal({afterAddToCartCallback}, variantReferenceId, data) {
+            this.fillModalMarketing(data.marketing.modal);
+
+            const closeModalButton = document.querySelector(".estaly-modal-dialog .estaly-close")
+            closeModalButton.addEventListener("click", this.closeModal)
+
+            this.initialized = true;
+        },
+
+        fillModalMarketing(modalMarketingDetails) {
+            const modal = document.querySelector(".estaly-modal-dialog");
+
+            if (modal) {
+                modal.querySelector("h2").innerText = modalMarketingDetails.headline;
+                modal.querySelector(".estaly-coverage-header").innerText = modalMarketingDetails.coverageBulletsHeading;
+
+                const bulletPoints = modal.querySelectorAll(".estaly-list .estaly-list-item");
+                bulletPoints.forEach((bulletPoint, index) => {
+                    bulletPoint.innerText = modalMarketingDetails.bulletPoints[index];
+                })
+
+                modal.querySelector(".estaly-terms-link").innerText = modalMarketingDetails.linkText;
+                modal.querySelector(".estaly-terms-link").href = modalMarketingDetails.planDetailsUrl;
+                modal.querySelector(".estaly-merchant-logo").src = modalMarketingDetails.merchantLogo;
+                modal.querySelector(".estaly-offered-by").innerText = modalMarketingDetails.legalText;
+
+                const modalLearnMoreImage = modal.querySelector(".estaly-learn-more-image");
+                if (modalLearnMoreImage !== undefined && modalLearnMoreImage !== null){
+                    modalLearnMoreImage.src = modalMarketingDetails.image;
+                }
+            }
+        },
+
+        openModal(withButtons) {
+            if (this.initialized) {
+                const modal = document.querySelector(".estaly-modal-dialog")
+                modal.style.display = "flex"
+            }
+        },
+
+        closeModal() {
+            const modal = document.querySelector(".estaly-modal-dialog")
+            modal.style.display = "none"
+        },
+
+    }
+
+
+    const Magento1 = {
+        fetchOptionIdUrl: '<?php echo $fetchOptionIdUrl; ?>',
+
+        async getOptionIdFromProductId(productId) {
+            return new Promise((resolve, reject) => {
+                jQuery.ajax({
+                    url: "http://localhost/magento1/estalymodule/productoptions/fetchOptionId/?productId=34",
+                    type: 'GET',
+                    data: { productId: productId },
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.success && data.optionId) {
+                            resolve(data.optionId);
+                        } else {
+                            reject(new Error("Failed to fetch optionId"));
+                        }
+                    },
+                    error: function(error) {
+                        reject(error);
+                    }
+                });
+            });
+        },
+
+        async addOfferToCart(productId, variantReferenceId, websiteUrl) {
+            try {
+                const optionId = await this.getOptionIdFromProductId(productId);
+
+                if (!optionId) return;  // Si optionId est null ou undefined, arrêtez l'exécution ici
+
+                const formKey = document.querySelector('input[name="form_key"]').value;
+                const url = `${websiteUrl}/checkout/cart/add/product/${productId}/`;
+                const data = {
+                    product: productId,
+                    qty: 1,
+                    form_key: formKey,
+                    options: {
+                        [optionId]: variantReferenceId  // Utilisez optionId comme clé dynamique
+                    }
+                };
+
+                jQuery.ajax({
+                    type: "POST",
+                    url: url,
+                    data: data,
+                    success: function(result) {
+                        console.log(result);
+                    },
+                    error: function(error) {
+                        console.log(error);
+                    }
+                });
+            } catch (error) {
+                console.error("Erreur lors de l'ajout de l'offre au panier", error);
+            }
+        }
+    }
+</script>
+
+<style>
+    @import url("<?php echo $cssScriptLink; ?>");
+</style>
+
+<div class="custom-text">
+    <div class="estaly-pdp-offering">
+        <div class="estaly-title">
+            <div class="estaly-headline-buttons">
+                Add product protection
+            </div>
+        </div>
+
+        <div class="estaly-button-group"></div>
+        <div class="estaly-learn-more">
+            <div class="estaly-link-buttons">Learn more</div>
+            <img class="estaly-logo-full" src="https://estaly-docs.s3.eu-west-3.amazonaws.com/logos/Logo_Estaly+-+Couleur.png">
+        </div>
+    </div>
+
+    <div class="estaly-modal-dialog">
+        <div class="estaly-modal-content">
+            <div class="estaly-close">X</div>
+
+            <div class="estaly-content-container">
+                <div class="estaly-logo-container">
+                    <img width="53" height="55" class="estaly-logo" src="https://estaly-docs.s3.eu-west-3.amazonaws.com/logos/Logo_Estaly+-+Badge.png">
+                    <img width="17" height="17" class="estaly-plus" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGcgc3Ryb2tlPSIjMDkwNjM3IiBzdHJva2Utd2lkdGg9IjEuOTU5IiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CiAgICA8cGF0aCBkPSJNNy4yMDQgMS4zMjd2MTEuMTAxTTEuNjU0IDYuODc3aDExLjEiLz4KICA8L2c+Cjwvc3ZnPgo=">
+                    <img width="" height="" class="estaly-merchant-logo" src="https://cdn.shopify.com/s/files/1/0606/9252/9326/files/LogoLoewiLettres_300x.png?v=1643276271">
+                </div>
+
+                <h2 class="estaly-subheading">
+                </h2>
+
+                <div class="estaly-coverage-header">This plan covers:</div>
+
+                <ul class="estaly-list desktop-text">
+                    <li class="estaly-list-item"></li>
+                    <li class="estaly-list-item"></li>
+                    <li class="estaly-list-item"></li>
+                </ul>
+
+                <div class="estaly-link-container">
+                    <a class="estaly-terms-link" target="_blank" rel="noopener noreferrer" href="#"></a>
+                    <div class="estaly-offered-by">Offered by Estaly</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script async>
+    const estalyApiUrl = '<?php echo $estalyApiUrl; ?>';
+
+    const estalyApiKey = '<?php echo $estalyApiKey; ?>';
+    const estalyStoreId = '<?php echo $estalyStoreId; ?>';
+
+    const websiteUrl = '<?php echo $websiteUrl; ?>';
+
+    console.log("WEBSITE ID", '<?php echo $websiteId; ?>')
+
+    console.log("ESTALY API KEY", estalyApiKey)
+
+    console.log("WEBSITE URL", websiteUrl)
+
+    const modalFeatureEnabled = <?php echo $modalFeatureEnabled ? 'true' : 'false'; ?>;
+    const addToCartButtonClass = '<?php echo $addToCartButtonClass; ?>';
+
+    document.addEventListener("DOMContentLoaded", async function () {
+        setTimeout(async function () {
+            console.log("init Estaly Widget");
+
+            Estaly.init(estalyApiUrl, estalyApiKey);
+            const variantReferenceId = <?= json_encode($productId) ?>;
+            await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl });
+        }, 200);
+    });
+
+    Product.Config.prototype.getIdOfSelectedProduct = function() {
+        var existingProducts = new Object();
+
+        for (var i = this.settings.length - 1; i >= 0; i--) {
+            var selected = this.settings[i].options[this.settings[i].selectedIndex];
+            if (selected.config) {
+                for (var iproducts = 0; iproducts < selected.config.products.length; iproducts++) {
+                    var usedAsKey = selected.config.products[iproducts] + "";
+                    if (existingProducts[usedAsKey] == undefined) {
+                        existingProducts[usedAsKey] = 1;
+                    } else {
+                        existingProducts[usedAsKey] = existingProducts[usedAsKey] + 1;
+                    }
+                }
+            }
+        }
+
+        for (var keyValue in existingProducts) {
+            for (var keyValueInner in existingProducts) {
+                if (Number(existingProducts[keyValueInner]) < Number(existingProducts[keyValue])) {
+                    delete existingProducts[keyValueInner];
+                }
+            }
+        }
+
+        var sizeOfExistingProducts = 0;
+        var currentSimpleProductId = "";
+        for (var keyValue in existingProducts) {
+            currentSimpleProductId = keyValue;
+            sizeOfExistingProducts = sizeOfExistingProducts + 1
+        }
+
+        if (sizeOfExistingProducts == 1) {
+            return currentSimpleProductId;
+        }
+    }
+
+    document.observe('dom:loaded', function() {
+        if (typeof Product.Config !== 'undefined') {
+            Product.Config.prototype.configureElement = Product.Config.prototype.configureElement.wrap(function(originalFn, element) {
+                originalFn(element); 
+                const variantReferenceId = this.getIdOfSelectedProduct();
+                setTimeout(async function () {
+                    console.log("init Estaly Widget 2");
+
+                    const addToCartButtonClass = '<?php echo $addToCartButtonClass; ?>';
+                    const modalFeatureEnabled = <?php echo $modalFeatureEnabled ? 'true' : 'false'; ?>;
+                    await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl });
+                }, 200);
+            });
+        }
+    });
+</script>

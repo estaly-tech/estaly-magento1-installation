@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<layout>
+    <catalog_product_view>
+        <reference name="product.info.extrahint">
+            <block type="core/template" name="product.view.estaly_product_protection" template="estaly/product/offers.phtml" translate="label" />
+        </reference>
+    </catalog_product_view>
+</layout>
