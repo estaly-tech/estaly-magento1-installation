@@ -8,18 +8,18 @@
                 <cssScriptLink>https://estaly-tech.github.io/scripts/magento/estaly-magento-local.css</cssScriptLink>
                 <addToCartButtonClass>button btn-cart</addToCartButtonClass>
                 <websites>
-                <website_1>
-                    <estalyApiKey>Bearer r_Dr_2kw11dHSHMh6-A0MQ</estalyApiKey>
-                    <estalyStoreId>120</estalyStoreId>
-                    <websiteUrl>http://localhost/magento1</websiteUrl>
-                </website_1>
-                <website_4>
-                    <estalyApiKey>Bearer 9tCSSMAoxR2-YPSK950PWQ</estalyApiKey>
-                    <estalyStoreId>121</estalyStoreId>
-                    <websiteUrl>http://localhost/magento1/store2</websiteUrl>
-                </website_4>
-                <!-- ... add more website configurations here ... -->
-            </websites>
+                    <website_1>
+                        <estalyApiKey>Bearer r_Dr_2kw11dHSHMh6-A0MQ</estalyApiKey>
+                        <estalyStoreId>120</estalyStoreId>
+                        <websiteUrl>http://localhost/magento1</websiteUrl>
+                    </website_1>
+                    <website_4>
+                        <estalyApiKey>Bearer 9tCSSMAoxR2-YPSK950PWQ</estalyApiKey>
+                        <estalyStoreId>121</estalyStoreId>
+                        <websiteUrl>http://localhost/magento1/store2</websiteUrl>
+                    </website_4>
+                    <!-- ... add more website configurations here ... -->
+                </websites>
             </settings>
         </estalymodule>
     </default>
