@@ -43,7 +43,7 @@ class Estaly_EstalyModule_Model_Observer
                     "address1" => $billingAddress->getStreetFull(),
                     "phone" => $billingAddress->getTelephone()
                 ],
-                "OrderItems" => []
+                "line_items" => []
             ]
         ];
 
@@ -65,7 +65,7 @@ class Estaly_EstalyModule_Model_Observer
 
             $options = $item->getProductOptions();
         
-            $orderData["order"]["OrderItems"][] = [
+            $orderData["order"]["line_items"][] = [
                 "product_id" => $product->getId(),
                 "sku" => $product->getSku(),
                 "name" => $item->getName(),
