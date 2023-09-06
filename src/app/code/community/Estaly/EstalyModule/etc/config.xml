@@ -3,7 +3,6 @@
     <default>
         <estalymodule>
             <settings>
-                <mainWebsiteUrl>http://localhost/magento1</mainWebsiteUrl>
                 <estalyApiUrl>https://195c-2a04-cec0-11fb-af2-19ef-11c5-bf9a-5c26.ngrok-free.app</estalyApiUrl>
                 <modalFeatureEnabled>true</modalFeatureEnabled>
                 <cssScriptLink>https://estaly-tech.github.io/scripts/magento/estaly-magento-local.css</cssScriptLink>

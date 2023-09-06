@@ -1,0 +1,152 @@
+<?php
+$product = Mage::registry('current_product');
+$productId = $product->getId();
+
+$fetchOptionIdUrl = Mage::getUrl('estalymodule/productoptions/fetchOptionId');
+
+$estalyApiUrl = Mage::getStoreConfig('estalymodule/settings/estalyApiUrl');
+
+$modalFeatureEnabled = Mage::getStoreConfig('estalymodule/settings/modalFeatureEnabled') === 'true' ? true : false;
+$cssScriptLink = Mage::getStoreConfig('estalymodule/settings/cssScriptLink');
+$addToCartButtonClass = Mage::getStoreConfig('estalymodule/settings/addToCartButtonClass');
+
+$websiteId = Mage::app()->getWebsite()->getId();
+$estalyApiKey = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/estalyApiKey');
+$estalyStoreId = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/estalyStoreId');
+$websiteUrl = Mage::getStoreConfig('estalymodule/settings/websites/website_'.$websiteId.'/websiteUrl');
+
+$defaultStore = Mage::app()->getWebsite()->getDefaultStore();
+$mainWebsiteUrl = $defaultStore->getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB, true);
+?>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+    jQuery.noConflict();
+</script>
+
+<script type="text/javascript" src="<?php echo $this->getSkinUrl('js/estaly.js'); ?>"></script>
+
+<style>
+    @import url("<?php echo $cssScriptLink; ?>");
+</style>
+
+<div class="custom-text">
+    <div class="estaly-pdp-offering">
+        <div class="estaly-title">
+            <div class="estaly-headline-buttons">
+                Add product protection
+            </div>
+        </div>
+
+        <div class="estaly-button-group"></div>
+        <div class="estaly-learn-more">
+            <div class="estaly-link-buttons">Learn more</div>
+            <img class="estaly-logo-full" src="https://estaly-docs.s3.eu-west-3.amazonaws.com/logos/Logo_Estaly+-+Couleur.png">
+        </div>
+    </div>
+
+    <div class="estaly-modal-dialog">
+        <div class="estaly-modal-content">
+            <div class="estaly-close">X</div>
+
+            <div class="estaly-content-container">
+                <div class="estaly-logo-container">
+                    <img width="53" height="55" class="estaly-logo" src="https://estaly-docs.s3.eu-west-3.amazonaws.com/logos/Logo_Estaly+-+Badge.png">
+                    <img width="17" height="17" class="estaly-plus" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTQiIGhlaWdodD0iMTQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGcgc3Ryb2tlPSIjMDkwNjM3IiBzdHJva2Utd2lkdGg9IjEuOTU5IiBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CiAgICA8cGF0aCBkPSJNNy4yMDQgMS4zMjd2MTEuMTAxTTEuNjU0IDYuODc3aDExLjEiLz4KICA8L2c+Cjwvc3ZnPgo=">
+                    <img width="" height="" class="estaly-merchant-logo" src="https://cdn.shopify.com/s/files/1/0606/9252/9326/files/LogoLoewiLettres_300x.png?v=1643276271">
+                </div>
+
+                <h2 class="estaly-subheading">
+                </h2>
+
+                <div class="estaly-coverage-header">This plan covers:</div>
+
+                <ul class="estaly-list desktop-text">
+                    <li class="estaly-list-item"></li>
+                    <li class="estaly-list-item"></li>
+                    <li class="estaly-list-item"></li>
+                </ul>
+
+                <div class="estaly-link-container">
+                    <a class="estaly-terms-link" target="_blank" rel="noopener noreferrer" href="#"></a>
+                    <div class="estaly-offered-by">Offered by Estaly</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script async>
+    const estalyApiUrl = '<?php echo $estalyApiUrl; ?>';
+
+    const estalyApiKey = '<?php echo $estalyApiKey; ?>';
+    const estalyStoreId = '<?php echo $estalyStoreId; ?>';
+
+    const websiteUrl = '<?php echo $websiteUrl; ?>';
+
+    const mainWebsiteUrl = '<?php echo $mainWebsiteUrl; ?>';
+
+    const modalFeatureEnabled = <?php echo $modalFeatureEnabled ? 'true' : 'false'; ?>;
+    const addToCartButtonClass = '<?php echo $addToCartButtonClass; ?>';
+
+    document.addEventListener("DOMContentLoaded", async function () {
+        setTimeout(async function () {
+            Estaly.init(estalyApiUrl, estalyApiKey);
+            const variantReferenceId = <?= json_encode($productId) ?>;
+            await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl, mainWebsiteUrl });
+        }, 200);
+    });
+
+    Product.Config.prototype.getIdOfSelectedProduct = function() {
+        var existingProducts = new Object();
+
+        for (var i = this.settings.length - 1; i >= 0; i--) {
+            var selected = this.settings[i].options[this.settings[i].selectedIndex];
+            if (selected.config) {
+                for (var iproducts = 0; iproducts < selected.config.products.length; iproducts++) {
+                    var usedAsKey = selected.config.products[iproducts] + "";
+                    if (existingProducts[usedAsKey] == undefined) {
+                        existingProducts[usedAsKey] = 1;
+                    } else {
+                        existingProducts[usedAsKey] = existingProducts[usedAsKey] + 1;
+                    }
+                }
+            }
+        }
+
+        for (var keyValue in existingProducts) {
+            for (var keyValueInner in existingProducts) {
+                if (Number(existingProducts[keyValueInner]) < Number(existingProducts[keyValue])) {
+                    delete existingProducts[keyValueInner];
+                }
+            }
+        }
+
+        var sizeOfExistingProducts = 0;
+        var currentSimpleProductId = "";
+        for (var keyValue in existingProducts) {
+            currentSimpleProductId = keyValue;
+            sizeOfExistingProducts = sizeOfExistingProducts + 1
+        }
+
+        if (sizeOfExistingProducts == 1) {
+            return currentSimpleProductId;
+        }
+    }
+
+    document.observe('dom:loaded', function() {
+        if (typeof Product.Config !== 'undefined') {
+            Product.Config.prototype.configureElement = Product.Config.prototype.configureElement.wrap(function(originalFn, element) {
+                originalFn(element); 
+                const variantReferenceId = this.getIdOfSelectedProduct();
+                setTimeout(async function () {
+
+                    const addToCartButtonClass = '<?php echo $addToCartButtonClass; ?>';
+                    const modalFeatureEnabled = <?php echo $modalFeatureEnabled ? 'true' : 'false'; ?>;
+                    await PDP.init({ variantReferenceId, addToCartButtonClass, modalFeatureEnabled, websiteUrl, mainWebsiteUrl});
+                }, 200);
+            });
+        }
+    });
+</script>
