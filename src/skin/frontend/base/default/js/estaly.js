@@ -159,7 +159,7 @@ const PDP = {
 
         const textOfferButton = document.createElement('div');
         textOfferButton.setAttribute('class', 'estaly-offer-uniq-button-title');
-        textOfferButton.innerText = `Assurance ${plan.termLength}`;
+        textOfferButton.innerText = `${plan.title}`;
         checkboxTextDiv.appendChild(textOfferButton);
 
         offerButton.appendChild(checkboxTextDiv);
@@ -368,7 +368,7 @@ const Magento1 = {
                 url: url,
                 data: data,
                 success: function(result) {
-                    console.log(result);
+                    window.location.reload();
                 },
                 error: function(error) {
                     console.log(error);
